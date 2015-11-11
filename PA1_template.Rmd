@@ -1,0 +1,76 @@
+---
+title: "PA1_template"
+author: "Fang Lu"
+date: "November 9, 2015"
+output: html_document
+---
+
+Loading and preprocessing the data
+```{r, echo=TRUE}
+temp<-tempfile()
+download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip", temp)
+data <- read.csv(unz(temp, "activity.csv"))
+unlink(temp)
+```
+
+Calculate the mean total number of steps taken per day
+```{r, echo=TRUE}
+options("scipen"=100, "digits"=4)
+stepsperday<-aggregate(steps ~ date, data = data, sum)
+hist(stepsperday$steps, xlab= "Date", col = "red", main = "Total Steps per Day", xaxt="n")
+meanstepsperday<-aggregate(steps ~ date, data = data, mean)
+medianstepsperday<-aggregate(steps ~ date, data = data, median)
+meanstepsperday
+medianstepsperday
+```
+
+Find out the average daily activity pattern
+```{r,echo=TRUE}
+meanstepsperinterval<-aggregate(steps ~ interval, data = data, mean)
+with(meanstepsperinterval, plot(interval, steps, type ="l", xlab ="interval", ylab = "Mean Steps"))
+maxstepsinterval<-meanstepsperinterval[which.max(meanstepsperinterval$steps),]
+```
+The `r maxstepsinterval$interval` interval, on average across all the days in the dataset, contains the maximum number of steps.
+
+Imputing missing values
+```{r, echo=TRUE}
+numberofmissings<-sum(is.na(data$steps))
+missingvalues<-unique(data[is.na(data$steps),])
+missingdays<-unique(missingvalues$date)
+gooddata<-data[!is.na(data$steps),]
+missingvalues$steps<-meanstepsperinterval$steps
+imputedata<-rbind(gooddata, missingvalues)
+hist(stepsperday$steps, xlab= "Date", col = "red", main = "Total Steps per Day Imputed", xaxt="n")
+imputemeanstepsperday<-aggregate(steps ~ date, data = imputedata, mean)
+imputemedianstepsperday<-aggregate(steps ~ date, data = imputedata, median)
+
+```
+The total number of missing values in the dataset is `r numberofmissings`.
+These missing values were replaced with the average steps per 5 mins interval across days.
+The mean steps taken per day was calcualted after imputation.
+```{r, echo=FALSE}
+imputemeanstepsperday
+```
+The median steps taken per day was calcualted after imputation
+```{r, echo=FALSE}
+imputemedianstepsperday
+```
+These values do not differ from the estimates from the first part of the assignment, except the changes on the estimates of the missing days through giving some estimates. By imputing missing data, it increases the estimates of the total daily number of steps in the missing days.
+
+There are differences in activity patterns between weekdays and weekends as showing below.
+```{r,echo=TRUE}
+imputedata$day<-weekdays(as.Date(imputedata$date))
+imputedata$day[imputedata$day=="Sunday"]<-"weekend"
+imputedata$day[imputedata$day=="Saturday"]<-"weekend"
+imputedata$day[imputedata$day=="Monday"]<-"weekday"
+imputedata$day[imputedata$day=="Tuesday"]<-"weekday"
+imputedata$day[imputedata$day=="Wednesday"]<-"weekday"
+imputedata$day[imputedata$day=="Thursday"]<-"weekday"
+imputedata$day[imputedata$day=="Friday"]<-"weekday"
+imputedmeansteps.interval<-aggregate(imputedata$steps,data = imputedata, by=list(imputedata$interval, imputedata$day), mean)
+
+library(lattice)
+f<-factor(imputedata$day, labels = c("weekend", "weekday"))
+xyplot(imputedmeansteps.interval$x ~ imputedmeansteps.interval$Group.1 | imputedmeansteps.interval$Group.2, type = "l", layout =c(1,2))
+```
+
